@@ -16,9 +16,9 @@ progressbar(){
   readonly local BAR_END=$'\033[0m]\033[0m'
   local progCharCount
   local percent=$1
-  # reserve 15 chars for progress info string in form
-  # YYY%_XXX_of_ZZZ
-  readonly local RESERV_SYMB_COUNT=15
+  # reserve 16 chars for progress info string in form
+  # "_YYY%_XXX_of_ZZZ" + 2 for [] brackets
+  readonly local RESERV_SYMB_COUNT=18
   local barMaxLen=$((terminalWidth-RESERV_SYMB_COUNT))
 
   #trim param larger then 100 to 100
@@ -70,18 +70,18 @@ for srcFile in "${!sizesOfFiles[@]}"; do
     #smart way of calculating percentage
     ((progress+=$((200*${sizesOfFiles[$srcFile]}/$totalSize % 2 + 100*${sizesOfFiles[$srcFile]}/$totalSize))))
     #increment copied files counter
-    ((temp++))
+    ((copiedCount++))
 
     tput el1
     tput rc
     tput cuu1
 
     # removing percentage rounding error in final result
-    if [[ $temp -eq $fileCount ]]; then
+    if [[ $copiedCount -eq $fileCount ]]; then
       progress=100
     fi
 
-    printf '%s %s%% %u of %u\nFile: %s' "$(progressbar $progress)" "$progress" "$temp" "$fileCount" "${srcFile/#*'/'/''}"
+    printf '%s %3s%% %3u of %3u\nFile: %s' "$(progressbar $progress)" "$progress" "$copiedCount" "$fileCount" "${srcFile/#*'/'/''}"
   else
     echo "Error code: $?"
     exit 1
