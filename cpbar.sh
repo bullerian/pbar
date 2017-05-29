@@ -1,32 +1,34 @@
-#!/bin/bash -x
+#!/bin/bash
 
 src=$1
 dst=$2
 barChar='='
 fileList=0
-fileCount=0
 totalSize=0
-progress=0
-temp=0
+terminalWidth=$(tput cols)
 declare -A sizesOfFiles
 
 #Generates test file
 #dd if=/dev/zero of=source count=400000 bs=1000 iflag=fullblock
 
 progressbar(){
-  readonly BAR_TOTAL_CHAR=25
   readonly local BAR_START=$'\033[1m[\033[32m'
   readonly local BAR_END=$'\033[0m]\033[0m'
   local progCharCount
   local percent=$1
+  # reserve 15 chars for progress info string in form
+  # YYY%_XXX_of_ZZZ
+  readonly local RESERV_SYMB_COUNT=15
+  local barMaxLen=$((terminalWidth-RESERV_SYMB_COUNT))
 
+  #trim param larger then 100 to 100
   if [[ $percent -gt '100' ]]; then
     percent=100
   fi
-  
-    progCharCount=$((($percent*$BAR_TOTAL_CHAR)/100))
-    string=$BAR_START$(printf '%*s' $progCharCount | tr ' ' $barChar)$(printf '%*s' $((BAR_TOTAL_CHAR - progCharCount)))$BAR_END
-    echo "$string"
+
+  progCharCount=$((($percent*$barMaxLen)/100))
+  string=$BAR_START$(printf '%*s' $progCharCount | tr ' ' $barChar)$(printf '%*s' $((barMaxLen - progCharCount)))$BAR_END
+  echo "$string"
 }
 
 #Check if both args are folders
@@ -61,27 +63,33 @@ progress=0
 for srcFile in "${!sizesOfFiles[@]}"; do
   cp "$srcFile" "$dst"
 
+  # check retval of cp command
+  # display progress bar on success
+  # else display eror code
   if [ $? -eq 0 ]; then
     #smart way of calculating percentage
-    tmp=$((200*${sizesOfFiles[$srcFile]}/$totalSize % 2 + 100*${sizesOfFiles[$srcFile]}/$totalSize))
-    ((progress+=tmp))
-    #echo $progress
+    ((progress+=$((200*${sizesOfFiles[$srcFile]}/$totalSize % 2 + 100*${sizesOfFiles[$srcFile]}/$totalSize))))
+    #increment copied files counter
     ((temp++))
-    #echo $temp
 
     tput el1
     tput rc
     tput cuu1
-    #echo "ok"
+
+    # removing percentage rounding error in final result
+    if [[ $temp -eq $fileCount ]]; then
+      progress=100
+    fi
+
     printf '%s %s%% %u of %u\nFile: %s' "$(progressbar $progress)" "$progress" "$temp" "$fileCount" "${srcFile/#*'/'/''}"
   else
-    echo "error"
+    echo "Error code: $?"
     exit 1
   fi
 done
 
 tput el1
 tput cuu1
-printf '\nDone\n'
+printf '\nDone. %s bytes copied\n' "$totalSize"
 
 exit 0
